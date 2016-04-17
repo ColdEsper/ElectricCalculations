@@ -152,7 +152,6 @@ def discIntegral (q, r, x, y, z,steps):
         if theta+dt > 2.0*math.pi:
         #divide by dt to account for outside multiplication by dt
             dtRemainder = (2.0*math.pi-theta)/dt
-            print("dt")
         theta+=dt/2.0
         drRemainder = 1.0
         currentR = 0.0
