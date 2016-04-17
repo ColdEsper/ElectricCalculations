@@ -144,39 +144,53 @@ def discIntegral (q, r, x, y, z,steps):
     singleIntegrations = math.sqrt(steps)
     dt = (2.0*math.pi)/singleIntegrations
     dr = r/singleIntegrations
-    #remainder for if delta can't split up the length into equal pieces
-    drRemainder = 1.0
-    currentR = 0.0
-    while currentR < r:
-        if currentR+dr > r:
-            #divide by dr to account for outside multiplication by dr
-            drRemainder = (r-currentR)/dr
-        currentR+=dr/2.0
-        dtRemainder = 1.0
-        theta=0.0
-        ringField = Vector4(0.0,0.0,0.0)
-        while theta < 2.0*math.pi:
-            if theta+dt > 2.0*math.pi:
-            #divide by dt to account for outside multiplication by dt
-                dtRemainder = (2.0*math.pi-theta)/dt
-            theta+=dt/2.0
+    #remainder for if delta can't split up into equal pieces
+    dtRemainder = 1.0
+    theta=0.0
+    while theta < 2.0*math.pi:
+        if theta+dt > 2.0*math.pi:
+        #divide by dt to account for outside multiplication by dt
+            dtRemainder = (2.0*math.pi-theta)/dt
+        theta+=dt/2.0
+        drRemainder = 1.0
+        currentR = 0.0
+        lineField = Vector4(0.0,0.0,0.0)
+        #uses Milne's rule
+        while currentR < r:
+            if currentR+dr > r:
+                #divide by dr to account for outside multiplication by dr
+                drRemainder = (r-currentR)/dr
+            currentR+=dr/4.0
             denom = (math.pow((math.pow(x-currentR*math.cos(theta),2)+math.pow(y-currentR*math.sin(theta),2)+math.pow(z,2)),3.0/2.0))
-            ringField.x+=dtRemainder*(x-currentR*math.cos(theta))/denom
-            ringField.y+=dtRemainder*(y-currentR*math.sin(theta))/denom
-            ringField.z+=dtRemainder/denom
-            theta+=dt/2.0
-        ringField.normalize()
-        ringField.x*=currentR
-        ringField.y*=currentR
-        ringField.z*=currentR
-        ringField.normalize()
-        field+=ringField
+            lineField.x+=2*drRemainder*currentR*(x-currentR*math.cos(theta))/denom
+            lineField.y+=2*drRemainder*currentR*(y-currentR*math.sin(theta))/denom
+            lineField.z+=2*drRemainder*currentR/denom
+            lineField.normalize()
+            currentR+=dr/4.0
+            denom = (math.pow((math.pow(x-currentR*math.cos(theta),2)+math.pow(y-currentR*math.sin(theta),2)+math.pow(z,2)),3.0/2.0))
+            lineField.x-=drRemainder*currentR*(x-currentR*math.cos(theta))/denom
+            lineField.y-=drRemainder*currentR*(y-currentR*math.sin(theta))/denom
+            lineField.z-=drRemainder*currentR/denom
+            lineField.normalize()
+            currentR+=dr/4.0
+            denom = (math.pow((math.pow(x-currentR*math.cos(theta),2)+math.pow(y-currentR*math.sin(theta),2)+math.pow(z,2)),3.0/2.0))
+            lineField.x+=2*drRemainder*currentR*(x-currentR*math.cos(theta))/denom
+            lineField.y+=2*drRemainder*currentR*(y-currentR*math.sin(theta))/denom
+            lineField.z+=2*drRemainder*currentR/denom
+            lineField.normalize()
+            currentR+=dr/4.0
+        lineField.normalize()
+        lineField.x*=dtRemainder
+        lineField.y*=dtRemainder
+        lineField.z*=dtRemainder
+        lineField.normalize()
+        field+=lineField
         field.normalize()
-        currentR+=dr/2.0
+        theta+=dt/2.0
     field.normalize()
-    field.x*=constant*dr*dt
-    field.y*=constant*dr*dt
-    field.z*=z*constant*dr*dt
+    field.x*=constant*(dr/3.0)*dt
+    field.y*=constant*(dr/3.0)*dt
+    field.z*=z*constant*(dr/3.0)*dt
     field.normalize()
     return field
 
