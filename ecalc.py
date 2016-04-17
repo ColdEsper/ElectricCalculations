@@ -141,9 +141,12 @@ def discIntegral (q, r, x, y, z,steps):
     density = q/(math.pi*r*r)
     constant = k*density
     field = Vector4(0.0,0.0,0.0)
-    singleIntegrations = math.sqrt(steps)
     #Tries to perserve symmetry in calculations by minimizing dtRemainder
-    dt = (2.0*math.pi)/(float(int(singleIntegrations)))
+    #by dividing by a whole number rather than a fraction
+    singleIntegrations = float(int(math.sqrt(steps)))
+    dt = (2.0*math.pi)/singleIntegrations
+    #Seems to have better convergence when number of steps over
+    #r is equal to the number of steps over theta
     dr = r/singleIntegrations
     #remainder for if delta can't split up into equal pieces
     dtRemainder = 1.0
