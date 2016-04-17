@@ -142,7 +142,8 @@ def discIntegral (q, r, x, y, z,steps):
     constant = k*density
     field = Vector4(0.0,0.0,0.0)
     singleIntegrations = math.sqrt(steps)
-    dt = (2.0*math.pi)/singleIntegrations
+    #Tries to perserve symmetry in calculations by minimizing dtRemainder
+    dt = (2.0*math.pi)/(float(int(singleIntegrations)))
     dr = r/singleIntegrations
     #remainder for if delta can't split up into equal pieces
     dtRemainder = 1.0
@@ -151,6 +152,7 @@ def discIntegral (q, r, x, y, z,steps):
         if theta+dt > 2.0*math.pi:
         #divide by dt to account for outside multiplication by dt
             dtRemainder = (2.0*math.pi-theta)/dt
+            print("dt")
         theta+=dt/2.0
         drRemainder = 1.0
         currentR = 0.0
