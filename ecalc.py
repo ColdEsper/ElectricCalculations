@@ -3,6 +3,8 @@ import os
 import math
 import tkinter as tk
 
+COULOMBS_CONSTANT = 8.987551787*10**9
+
 class Vector4(object):
     def __init__(self,x,y,z,w=0.0):
         self.x=x
@@ -98,15 +100,15 @@ def returnMain (prevFrame):
     prevFrame.destroy()
     guiMain()
 
-#treats circle as laying on the xy-plane
+#treats ring as laying on the XY plane
 #Ex = (r*lambda)/(4*pi*epsilon)*integral(
 #      (dtheta*(x2-rcos(theta)))/((x2-rcos(theta))^2+(y2-rsin(theta))^2+z^2)^(3/2) )
 #Ey = (r*lambda)/(4*pi*epsilon)*integral(
 #      (dtheta*(y2-rsin(theta)))/((x2-rcos(theta))^2+(y2-rsin(theta))^2+z^2)^(3/2) )
 #Ez = (z*r*lambda)/(4*pi*epsilon)*integral(
 #      dtheta/((x2-rcos(theta))^2+(y2-rsin(theta))^2+z^2)^(3/2) )
-def circleIntegral (q,r, x, y, z, steps):
-    k = 8.987551787*10**9
+def ringEField (q,r, x, y, z, steps):
+    k = COULOMBS_CONSTANT
     density = q/(2.0*math.pi*r)
     constant = k*density*r
     field = Vector4(0.0,0.0,0.0)
@@ -132,12 +134,38 @@ def circleIntegral (q,r, x, y, z, steps):
     field.normalize()
     return field
 
+#Ring on the XY plane
+# voltage = (r*lambda)/(4*pi*epsilon)*integral(
+#      dtheta/sqrt((x2-rcos(theta))^2+(y2-rsin(theta))^2+z^2) )
+def ringVoltage (q,r, x, y, z, steps):
+    k = COULOMBS_CONSTANT
+    density = q/(2.0*math.pi*r)
+    constant = k*density*r
+    voltage = 0.0
+    dt = (2.0*math.pi)/steps
+    #for if dt can't split the length up into equal parts due to precision
+    dtRemainder = 1.0
+    theta = 0.0
+    #uses midpoint summation for estimation
+    while theta < 2.0*math.pi:
+        if theta+dt > 2.0*math.pi:
+            #divide by dt to account for outside multiplication by dt
+            dtRemainder = (2.0*math.pi-theta)/dt
+        theta+=dt/2.0
+        denom = (math.sqrt((math.pow(x-r*math.cos(theta),2)+math.pow(y-r*math.sin(theta),2)+math.pow(z,2))))
+        voltage+=dtRemainder/denom
+        theta+=dt/2.0
+    voltage*=constant*dt
+    return voltage
+
 #Disc laying on XY plane
+#Uses similar equation as ringEField, 
+#but includes the r in the integral along with a dr
 #Uses double summation, so total number of parts to be summed split up
 #between the two summations. This way both double integrals and single
 #integrals take similar number of computations for same number of steps
-def discIntegral (q, r, x, y, z,steps):
-    k = 8.987551787*10**9
+def discEField (q, r, x, y, z,steps):
+    k = COULOMBS_CONSTANT
     density = q/(math.pi*r*r)
     constant = k*density
     field = Vector4(0.0,0.0,0.0)
@@ -198,30 +226,90 @@ def discIntegral (q, r, x, y, z,steps):
     field.normalize()
     return field
 
-def guiCircleCalculate (q,r,x,y,z,steps,magnitude,fieldX,fieldY,fieldZ):
-    efield = circleIntegral(float(q.get()),float(r.get()),
+#Ring on the XY plane
+# voltage = lambda/(4*pi*epsilon)*integral(
+#      dtheta*r*dr/sqrt((x2-rcos(theta))^2+(y2-rsin(theta))^2+z^2) )
+def discVoltage (q, r, x, y, z,steps):
+    k = COULOMBS_CONSTANT
+    density = q/(math.pi*r*r)
+    constant = k*density
+    voltage = 0.0
+    #Tries to perserve symmetry in calculations by minimizing dtRemainder
+    #by dividing by a whole number rather than a fraction
+    singleIntegrations = float(int(math.sqrt(steps)))
+    dt = (2.0*math.pi)/singleIntegrations
+    #Seems to have better convergence when number of steps over
+    #r is equal to the number of steps over theta
+    dr = r/singleIntegrations
+    #remainder for if delta can't split up into equal pieces
+    dtRemainder = 1.0
+    theta=0.0
+    while theta < 2.0*math.pi:
+        if theta+dt > 2.0*math.pi:
+        #divide by dt to account for outside multiplication by dt
+            dtRemainder = (2.0*math.pi-theta)/dt
+        theta+=dt/2.0
+        drRemainder = 1.0
+        currentR = 0.0
+        lineVolt = 0.0
+        #uses Milne's rule
+        while currentR < r:
+            if currentR+dr > r:
+                #divide by dr to account for outside multiplication by dr
+                drRemainder = (r-currentR)/dr
+            currentR+=dr/4.0
+            denom = (math.sqrt((math.pow(x-currentR*math.cos(theta),2)+math.pow(y-currentR*math.sin(theta),2)+math.pow(z,2))))
+            lineVolt+=2*drRemainder*currentR/denom
+            currentR+=dr/4.0
+            denom = (math.sqrt((math.pow(x-currentR*math.cos(theta),2)+math.pow(y-currentR*math.sin(theta),2)+math.pow(z,2))))
+            lineVolt-=drRemainder*currentR/denom
+            currentR+=dr/4.0
+            denom = (math.sqrt((math.pow(x-currentR*math.cos(theta),2)+math.pow(y-currentR*math.sin(theta),2)+math.pow(z,2))))
+            lineVolt+=2*drRemainder*currentR/denom
+            currentR+=dr/4.0
+        voltage+=lineVolt
+        theta+=dt/2.0
+    voltage*=constant*(dr/3.0)*dt
+    return voltage
+
+def guiRingEFieldCalculate (q,r,x,y,z,steps,magnitude,fieldX,fieldY,fieldZ):
+    efield = ringEField(float(q.get()),float(r.get()),
             float(x.get()),float(y.get()),float(z.get()),float(steps.get()))
     magnitude.set(str(efield.distance()))
     fieldX.set(str(efield.x))
     fieldY.set(str(efield.y))
     fieldZ.set(str(efield.z))
 
-def guiDiscCalculate (q,r,x,y,z,steps,magnitude,fieldX,fieldY,fieldZ):
-    efield = discIntegral(float(q.get()),float(r.get()),
+def guiRingVoltageCalculate (q,r,x,y,z,steps,magnitude):
+    voltage = ringVoltage(float(q.get()),float(r.get()),
+            float(x.get()),float(y.get()),float(z.get()),float(steps.get()))
+    magnitude.set(str(voltage))
+
+def guiDiscEFieldCalculate (q,r,x,y,z,steps,magnitude,fieldX,fieldY,fieldZ):
+    efield = discEField(float(q.get()),float(r.get()),
             float(x.get()),float(y.get()),float(z.get()),float(steps.get()))
     magnitude.set(str(efield.distance()))
     fieldX.set(str(efield.x))
     fieldY.set(str(efield.y))
     fieldZ.set(str(efield.z))
+
+def guiDiscVoltageCalculate (q,r,x,y,z,steps,magnitude):
+    voltage = discVoltage(float(q.get()),float(r.get()),
+            float(x.get()),float(y.get()),float(z.get()),float(steps.get()))
+    magnitude.set(str(voltage))
 
 def guiMain():
     menuCount=0
     frame = tk.Tk()
-    frame.title("E field")
-    createMenuEntry(frame,"Ring Charge",["Charge","Radius","Point x","Point y","Point z","Steps"],
-            ["Magnitude","X Component","Y Component","Z Component"],guiCircleCalculate)
-    createMenuEntry(frame,"Disc Charge",["Charge","Radius","Point x","Point y","Point z","Steps"],
-            ["Magnitude","X Component","Y Component","Z Component"],guiDiscCalculate)
+    frame.title("Electric Calculations")
+    createMenuEntry(frame,"Ring E Field",["Charge","Radius","Point x","Point y","Point z","Steps"],
+            ["Magnitude","X Component","Y Component","Z Component"],guiRingEFieldCalculate)
+    createMenuEntry(frame,"Ring Voltage",["Charge","Radius","Point x","Point y","Point z","Steps"],
+            ["Magnitude"],guiRingVoltageCalculate)
+    createMenuEntry(frame,"Disc E Field",["Charge","Radius","Point x","Point y","Point z","Steps"],
+            ["Magnitude","X Component","Y Component","Z Component"],guiDiscEFieldCalculate)
+    createMenuEntry(frame,"Disc Voltage",["Charge","Radius","Point x","Point y","Point z","Steps"],
+            ["Magnitude"],guiDiscVoltageCalculate)
     frame.mainloop()
 
 if __name__ == "__main__":
